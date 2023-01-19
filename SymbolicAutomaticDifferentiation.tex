@@ -1,0 +1,113 @@
+\documentclass{article}
+
+\title{Probabilistic Representation: Additive Shifted Automatic Differentiation}
+\author{Prasad N R\\Alumnus, Computer Engineering, \\Carnegie Mellon University\\prasadnr606@yahoo.in}
+
+\begin{document}
+\maketitle
+	\begin{abstract}
+		Multiplication of weights may or may not be a practical biological solution (the hypotheses is that biological neurons do not have symmetric feedback and exact 32-bit multiplication). As an approximation of universal approximation theorem, bit-shift (which is a non-differentiable symbol) is proposed. There are two variants of this problem (both of which can be solved using backpropagation): First variant is addition of bit-shift with non-negative float (without subtraction); The second variant is addition and subtraction of integers (without float).\\
+		
+		So, combining these two, we get additive-shift of float. The accuracy of this version is only about 2\% lesser than the original DNN. The idea is to try to avoid clock-cycles and make it easier to do inference almost at the speed of electricity in semiconductor (without memory or with relatively less memory). Another idea is to improve the ML-training and inference process so that they are compute-constrained.\\
+		
+		Source code: https://github.com/PrasadNR/additive-shift
+	\end{abstract}
+	
+	\begin{section}{Introduction}
+		
+		Deep-learning seems to be susceptible to noise and seems to work only when `exact' weights are trained for the local-minimum as per the training data (and not exactly robust).\cite{blindDescent} There are several discussions about why symmetric feedback may not be a plausible biological idea and why local loss functions with contrastive divergence may be better (with or without backpropagation).\cite{FFA} Another problem is with the requirement of memory for each activation-sum of traditional dense-neural-network (DNN) (which in turn means dependence on clock-cycles).\cite{blindDescent} Representation learning with explainable features is another problem with traditional DNN.\cite{explainableDeepLearning}\\\\
+		Multiplication is commutative. So, for these reasons and more, bit-shift is proposed as we have `control' over weights when we update weights (unlike inputs if we consider the equation f(x) = wx + b [b having negligible influence]). Also, this circuit seems to require much lesser clock-cycles. (this research is influenced by statistics and biology and this may not be an actual brain model)\\\\
+		The reason why bit-shift is locally-explainable is because it is an approximation of universal approximation theorem. The second variant is an approximation of multiplication (the unique advantage is the power of 2; This is a variant of power magnitude shift addition standard multiplication).
+	\end{section}
+
+	\begin{section}{Prior work}
+		There is some biological study about the relatively low frequency of the brain and relatively parallel architecture of the brain.\cite{backpropagationBrain} Also, there are certain optimisation algorithms like coordinate descent which attempt to make convex optimisation faster by using projection components along different axes.\cite{coordinateDescent} Also, brain is supposed to have parallel compute and brain is supposed to be inefficient at multi-tasking.\cite{backpropagationBrain} This might be because of relatively less memory requirements and efficient parallel compute for each layer. Also, the memory requirement in brain (even though it is relatively less) might be because of layer aggregation (like sum).\\\\
+		There are some ideas about using convolutional-neural-networks (CNN) and associated FFT to make the multiplication compute faster; But, brain may or may not work like that.\cite{FFTsCNN} The question is if neurons of brain work like a digital MOSFET or an analog MOSFET. There seems to be some ideas as to why neurons of brain work more like a digital MOSFET as opposed to analog MOSFET.\cite{backpropagationBrain}\\\\
+		Also, some of the pseudo-random weights (without much optimisation) seems to produce relatively accurate classification.\cite{blindDescent} If that is so, then, bit-shift with local-optimisation does not sound like a bad idea. There seems to be some ideas (like that of XGBoost) about using threshold alone for classification (although generative models may be difficult for XGBoost algorithm).\cite{xgboost} But, instead of threshold alone, if we have addition (and/or subtraction) with layers of ReLU (for threshold), then, we can expect better regression.
+	\end{section}
+
+	\newpage
+	\begin{section}{Visualisation of float for weights}
+		\begin{verbatim}
+			_______________________________________________________
+			| +/- | int (binary integer) | . | int (for fraction) |
+			-------------------------------------------------------
+		\end{verbatim}
+		For example, this "float" representation can be represented by a `signed integer' and an `unsigned integer' for `fraction' (unlike the standard float). For example, -4.75 can be represented by an `8-bit signed integer' for -4 and `8-bit unsigned integer' of 192 [$2^{8 - 1} + 2^{8 - 2} = 2^7 + 2^6 = 128 + 64 = 192$].\\\\
+		
+		The advantage of this representation is that, in both integers (excluding `sign'), we can have one-hot representation which makes the bit-shift computations much better. Also, one float can be represented by two integers (one signed and one unsigned). This makes the firmware design much faster and relatively independent of clock-cycles.
+	\end{section}
+
+	\begin{section}{Optimisation algorithm}
+		\begin{subsection}{Variant 1: addition of bit-shift with non-negative float (without subtraction)}
+			Task 0: Normalise the input: $ \forall x \subset [0, 1]$ \\ 
+			Task 1: Initialise weights with pseudo-random values\\
+			Task 2: Back-propagate the $\frac{\partial L}{\partial w}$ error-gradient vector\\
+			Task 3: If there is any weight $<$ 0, reset that weight to pseudo-random value\\
+			Task 4: Consider only the highest-bit of the weight (shift-matrix)\\
+			Task 5: Repeat tasks 2, 3 and 4 for some time\\
+		\end{subsection}
+		
+		\begin{subsection}{Variant 2: addition of bit-shift (including subtraction)}
+			Task 0: Normalise the input: $ \forall x \subset [-1, 1]$ \\ 
+			Task 1: Initialise weights with pseudo-random values\\
+			Task 2: Back-propagate the $\frac{\partial L}{\partial w}$ error-gradient vector\\
+			Task 3: Consider only the highest-bit of magnitude of integer weights\\ (shift-matrix with +/- to represent the positive or negative weights)\\
+			Task 4: Repeat tasks 2 and 3 for some time\\
+		\end{subsection}
+	
+		The first variant requires f(x) = activation(wx) [without bias] instead of f(x) = activation(wx + b). So, a combination of variants (it is second variant without normalisation of data) is considered for this experiment (although, with statistics, it can be proved that `learned weights' of wx would suffice and a bias may not be necessary for approximate function result).
+	\end{section}
+
+	\begin{section}{Experiment}
+		Data is not normalised.	MNIST data is considered. The architecture is 784 $\times$ 256 (and ReLU) followed by 256 $\times$ 10. The `learning rate' is 0.001 for 50,000 batches of batch size of 16 images. The accuracy obtained after the bit-shift transform is about 96.05\%.
+	\end{section}
+
+	\begin{section}{Discussion}
+		It is strange to see this convex optimisation procedure work only when this bit-shift threshold is considered after (and not during) the optimisation. Even though a relatively small pseudo-random noise was added to make sure weights are not equal during backpropagation, it does not seem to work (the accuracy of MNIST for this is about 75\%). A direct discrete convex optimisation process idea can be considered for this. Also, it would be nice to think about architectures like CNN, LSTM etc. (instead of DNN alone)\\\\
+		
+		The simulation of hardware for this bit-shift with FPGA for DNN or DSP for CNNs can be another thought process. Also, it would be nice to be able to create separate bit-shift compilers which can optimise the model before loading it into embedded software. With the current trend of backpropagation requiring significant money to train some models, some optimisation research related to the computer engineering can help in making these models work in compute-constrained cloud (especially with "explainable AGI" and statistical-graphs).\\\\
+		
+		Future work with this includes the explainable AGI. Some of the questions related to this are:
+		\begin{itemize}
+			\item Can we have a local optimisation process for non-differentiable signals?
+			\item Can we consider algorithms like "Forward Forward algorithm" with gradient information for negative data?\cite{FFA}
+			\item Univariate calculus equation: If we can't get an exact solution for a single univariate calculus equation, can we get an exact range (or set of ranges) or probability distribution which is guaranteed to have that exact solution?
+			\item Simultaneous calculus equations: If we can't get an exact solution for a single univariate calculus equation, (as an extension of previous question) can we get an exact range (or set of ranges) or probability distribution(s) for simultaneous univariate or multivariate calculus equations? 
+			\item Can we have curve-tracing instead of weights? (or can we do additive shape regression?)
+			\item Can we compute the importance of weights with relatively less computations? (without having to resort to gradient activation map)
+			\item Can we have information about when we can stop local training for a feature? [Is more data necessary for that feature for a given `layer'?]
+			\item Can we train the model for local optimum for a single feature for a given `layer'?
+			[the idea is to train a single node of feature-graph]
+			\item Finite compute: Can we get the probability distribution of number of batches or epochs needed to train that model for a given test error metric?
+			\subitem - Can we estimate this probability distribution with relatively less (and finite) compute-resources? Can we use sparse data for this?
+			\subitem - [If we have number of epochs for the x-axis, the y-axis can be the probability of that particular number of epochs producing that particular error rate or metric for a given learning rate]
+			\item Can we `design' 2D circuit (that is almost real-time and does inference almost at the speed of electricity in that conductor instead of overlapping connections as in DNN) using gradient learning process for the layout design for a given error metric and learning rate?
+		\end{itemize} 
+	\end{section}
+
+	\begin{thebibliography}{1}
+		\bibitem{blindDescent}
+		Akshat Gupta and Prasad N R, \textit{“Blind Descent: A Prequel to Gradient Descent”}, Vol. 783 Lecture Notes in Electrical Engineering,
+		ICDSMLA, Springer (2020)
+		
+		\bibitem{explainableDeepLearning}
+		Gabrielle Ras, Ning Xie, Marcel Van Gerven and Derek Doran, \textit{"Explainable Deep Learning: A Field Guide for the Uninitiated"}, Journal of Artificial Intelligence Research [Vol. 73] (2022)
+		
+		\bibitem{FFA}
+		Geoffrey Hinton, \textit{"The Forward-Forward Algorithm: Some Preliminary Investigations"} (Google Brain)
+		
+		\bibitem{backpropagationBrain}
+		Lillicrap T, Santoro A, Marris L, Akerman C and Hinton G E, \textit{"Backpropagation and The Brain"}, Nature Reviews Neuroscience (2020)
+		
+		\bibitem{FFTsCNN}
+		Michael Mathieu, Mikael Henaff and Yann LeCun, \textit{"Fast Training of Convolutional Networks through FFTs"}, $2^{nd}$ International Conference on Learning Representations (2014)
+		
+		\bibitem{coordinateDescent}
+		Stephen J Wright, \textit{"Coordinate Descent Algorithms"}, Mathematical Programming, Springer (2015)
+
+		\bibitem{xgboost}
+		Tianqi Chen and Carlos Guestrin, \textit{"XGBoost: A Scalable Tree Boosting System"}, Proceedings of the $22^{nd}$ ACM SIGKDD International Conference on Knowledge Discovery and Data Mining [pages 785-794] (2016)
+	\end{thebibliography}
+
+\end{document}
